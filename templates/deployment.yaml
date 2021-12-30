@@ -1,0 +1,65 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "lightning-terminal-helm.fullname" . }}
+  labels:
+    {{- include "lightning-terminal-helm.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "lightning-terminal-helm.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "lightning-terminal-helm.labels" . | nindent 8 }}
+    spec:
+      restartPolicy: Always
+      containers:
+      - name: {{ include "lightning-terminal-helm.fullname" . }}
+        image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+        ports:
+        - name: http
+          protocol: TCP
+          containerPort: 3000
+        {{- if .Values.livenessProbe.enabled }}
+        livenessProbe:
+          httpGet:
+            port: 3000
+            path: {{ .Values.livenessProbe.path }}
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        {{- end }}
+        {{- if .Values.readinessProbe.enabled }}
+        readinessProbe:
+          httpGet:
+            port: 3000
+            path: {{ .Values.readinessProbe.path }}
+          initialDelaySeconds: 5
+          periodSeconds: 5
+        {{- end }}
+        imagePullPolicy: Always
+        volumeMounts:
+        {{- if .Values.secrets.certificates.enable }}
+        - name: {{ .Values.secrets.certificates.secretName }}
+          readOnly: true
+          mountPath: {{ .Values.secrets.certificates.path }}/
+        {{- end }}
+        - name: {{ include "lightning-terminal-helm.fullname" . }}-config
+          mountPath: ~/.lit/lit.conf
+      volumes:
+      {{- if .Values.secrets.certificates.enable }}
+      - name: {{ .Values.secrets.certificates.secretName }}
+        secret:
+          defaultMode: 420
+          secretName: {{ .Values.secrets.certificates.secretName }}
+      {{- end }}
+      - name: {{ include "lightning-terminal-helm.fullname" . }}-config
+        configMap:
+          name: {{ include "lightning-terminal-helm.fullname" . }}-config
+          defaultMode: 0777
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0

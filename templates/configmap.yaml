@@ -1,0 +1,27 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "lightning-terminal-helm.fullname" . }}-config
+  labels:
+    {{- include "lightning-terminal-helm.labels" . | nindent 4 }}
+
+data:
+  lit.conf: |
+    # Application Config
+    uipassword={{ .Values.secrets.ui.password }}
+    network={{ .Values.network }}
+    lit-dir={{ .Values.lit.dir }}
+
+    {{- if .Values.https.enabled }}
+    httpslisten={{ .Values.https.httpslisten.url}}:{{ .Values.https.httpslisten.port }}
+    letsencrypt={{ .Values.https.letsencrypt }}
+    letsencrypthost={{ .Values.https.letsencrypthost }}
+    {{- end }}
+
+    # Remote lnd options
+    remote.lnd.rpcserver={{ .Values.serverUrl }}:10009
+    remote.lnd.macaroonpath={{ .Values.secrets.certificates.path }}/admin.macaroon
+    remote.lnd.tlscertpath={{ .Values.secrets.certificates.path }}/tls.cert
+
+    # Other config
+{{ .Values.lit.additionalConfig | indent 4 }}
